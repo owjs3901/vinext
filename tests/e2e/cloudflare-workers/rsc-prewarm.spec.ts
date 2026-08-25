@@ -211,7 +211,9 @@ test("deploy-prewarmed Pages HTML and RSC variants are reused", async ({
   expect(mismatchedOverride.headers()["cache-control"]).toBe("no-store");
   expect(await mismatchedOverride.text()).toContain("Cloudflare invoked Worker version");
 
-  const pagesResponse = await getResponseAfterPromotion(request, `${baseURL}${PAGES_TARGET_PATH}`);
+  const pagesResponse = await getResponseAfterPromotion(request, `${baseURL}${PAGES_TARGET_PATH}`, {
+    "x-test-visitor-id": "visitor-a",
+  });
   const pagesResponseHeaders = pagesResponse.headers();
   expect(pagesResponse.ok(), JSON.stringify(pagesResponseHeaders)).toBe(true);
   expect(pagesResponseHeaders["content-type"]).toContain("text/html");
@@ -220,9 +222,28 @@ test("deploy-prewarmed Pages HTML and RSC variants are reused", async ({
     pagesResponseHeaders["cf-cache-status"],
     `Pages response headers: ${JSON.stringify(pagesResponseHeaders)}`,
   ).toBe("HIT");
-  expect(await pagesResponse.text()).toContain("Pages prewarm target");
+  expect(pagesResponseHeaders["x-workers-cache-visitor"]).toBe("visitor-a");
+  const pagesBody = await pagesResponse.text();
+  expect(pagesBody).toContain("Pages prewarm target");
 
-  const appHtmlResponse = await getResponseAfterPromotion(request, `${baseURL}${TARGET_PATH}`);
+  const secondPagesResponse = await getResponseAfterPromotion(
+    request,
+    `${baseURL}${PAGES_TARGET_PATH}`,
+    { "x-test-visitor-id": "visitor-b" },
+  );
+  const secondPagesResponseHeaders = secondPagesResponse.headers();
+  expect(secondPagesResponse.ok(), JSON.stringify(secondPagesResponseHeaders)).toBe(true);
+  expect(secondPagesResponseHeaders["x-vinext-build-id"]).toBe(rscBuildId);
+  expect(
+    secondPagesResponseHeaders["cf-cache-status"],
+    `Second Pages response headers: ${JSON.stringify(secondPagesResponseHeaders)}`,
+  ).toBe("HIT");
+  expect(secondPagesResponseHeaders["x-workers-cache-visitor"]).toBe("visitor-b");
+  expect(await secondPagesResponse.text()).toBe(pagesBody);
+
+  const appHtmlResponse = await getResponseAfterPromotion(request, `${baseURL}${TARGET_PATH}`, {
+    "x-test-visitor-id": "visitor-a",
+  });
   const appHtmlResponseHeaders = appHtmlResponse.headers();
   expect(appHtmlResponse.ok(), JSON.stringify(appHtmlResponseHeaders)).toBe(true);
   expect(appHtmlResponseHeaders["content-type"]).toContain("text/html");
@@ -231,13 +252,29 @@ test("deploy-prewarmed Pages HTML and RSC variants are reused", async ({
     appHtmlResponseHeaders["cf-cache-status"],
     `App HTML response headers: ${JSON.stringify(appHtmlResponseHeaders)}`,
   ).toBe("HIT");
-  expect(await appHtmlResponse.text()).toContain("Prewarm target");
+  expect(appHtmlResponseHeaders["x-workers-cache-visitor"]).toBe("visitor-a");
+  const appHtmlBody = await appHtmlResponse.text();
+  expect(appHtmlBody).toContain("Prewarm target");
 
-  const fullResponse = await getResponseAfterPromotion(
+  const secondAppHtmlResponse = await getResponseAfterPromotion(
     request,
-    `${baseURL}${TARGET_PATH}?_rsc`,
-    fullHeaders,
+    `${baseURL}${TARGET_PATH}`,
+    { "x-test-visitor-id": "visitor-b" },
   );
+  const secondAppHtmlResponseHeaders = secondAppHtmlResponse.headers();
+  expect(secondAppHtmlResponse.ok(), JSON.stringify(secondAppHtmlResponseHeaders)).toBe(true);
+  expect(secondAppHtmlResponseHeaders["x-vinext-build-id"]).toBe(rscBuildId);
+  expect(
+    secondAppHtmlResponseHeaders["cf-cache-status"],
+    `Second App HTML response headers: ${JSON.stringify(secondAppHtmlResponseHeaders)}`,
+  ).toBe("HIT");
+  expect(secondAppHtmlResponseHeaders["x-workers-cache-visitor"]).toBe("visitor-b");
+  expect(await secondAppHtmlResponse.text()).toBe(appHtmlBody);
+
+  const fullResponse = await getResponseAfterPromotion(request, `${baseURL}${TARGET_PATH}?_rsc`, {
+    ...fullHeaders,
+    "x-test-visitor-id": "visitor-a",
+  });
   const fullResponseHeaders = fullResponse.headers();
   expect(fullResponse.ok(), JSON.stringify(fullResponseHeaders)).toBe(true);
   expect(fullResponseHeaders["content-type"]).toContain("text/x-component");
@@ -246,9 +283,25 @@ test("deploy-prewarmed Pages HTML and RSC variants are reused", async ({
     fullResponseHeaders["cf-cache-status"],
     `full RSC response headers: ${JSON.stringify(fullResponseHeaders)}`,
   ).toBe("HIT");
+  expect(fullResponseHeaders["x-workers-cache-visitor"]).toBe("visitor-a");
   const fullBody = await fullResponse.text();
   expect(fullBody).toContain(buildId);
   expect(fullBody).toContain("Prewarm target");
+
+  const secondFullResponse = await getResponseAfterPromotion(
+    request,
+    `${baseURL}${TARGET_PATH}?_rsc`,
+    { ...fullHeaders, "x-test-visitor-id": "visitor-b" },
+  );
+  const secondFullResponseHeaders = secondFullResponse.headers();
+  expect(secondFullResponse.ok(), JSON.stringify(secondFullResponseHeaders)).toBe(true);
+  expect(secondFullResponseHeaders["x-vinext-rsc-build-id"]).toBe(rscBuildId);
+  expect(
+    secondFullResponseHeaders["cf-cache-status"],
+    `Second full RSC response headers: ${JSON.stringify(secondFullResponseHeaders)}`,
+  ).toBe("HIT");
+  expect(secondFullResponseHeaders["x-workers-cache-visitor"]).toBe("visitor-b");
+  expect(await secondFullResponse.text()).toBe(fullBody);
 
   const shellResponse = await getResponseAfterPromotion(
     request,

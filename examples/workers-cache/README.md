@@ -23,9 +23,9 @@ vinext({
 });
 ```
 
-The Workers Cache only exposes `ctx.cache` when `cache.enabled: true` is set
-in `wrangler.jsonc`, and the KV adapter needs a matching `VINEXT_KV_CACHE`
-namespace binding — both are configured there.
+`cdnAdapter()` generates the per-entrypoint Workers Cache configuration during
+the Cloudflare build. The KV adapter still needs a matching
+`VINEXT_KV_CACHE` namespace binding in `wrangler.jsonc`.
 
 ## What's in the box
 
@@ -47,11 +47,10 @@ namespace binding — both are configured there.
    the Workers runtime at build/dev time; the adapters instantiate lazily on
    the first request.
 
-2. **`wrangler.jsonc`** enables the platform cache and binds the KV namespace:
+2. **`wrangler.jsonc`** binds the KV namespace:
 
    ```jsonc
    {
-     "cache": { "enabled": true },
      "kv_namespaces": [
        { "binding": "VINEXT_KV_CACHE", "id": "<your-kv-namespace-id>" }
      ]
@@ -70,10 +69,13 @@ namespace binding — both are configured there.
    }
    ```
 
-   The handler registers the configured adapters on the first request —
-   passing the Worker's `env` so `kvDataAdapter()` can resolve its KV binding —
-   then threads the request's `ExecutionContext` through ALS so `cdnAdapter()`
-   can reach `ctx.cache` at revalidation time. No manual registration.
+   When `cdnAdapter()` is configured, vinext asks the Cloudflare build for two
+   Worker entrypoints. The default entrypoint runs routing and middleware with
+   caching disabled; `VinextCachedResponse` lazily loads the render stage with
+   Workers Cache enabled. The generated `dist/server/wrangler.json` contains
+   those settings, so existing applications do not need a source-config edit.
+   The handler also passes the Worker's `env` so `kvDataAdapter()` can resolve
+   its KV binding. No manual registration.
 
 4. **ISR responses** carry `CDN-Cache-Control: public, max-age=N,
    stale-while-revalidate=M` (for the edge) plus a browser-facing

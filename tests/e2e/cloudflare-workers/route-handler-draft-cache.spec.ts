@@ -42,6 +42,17 @@ async function readDraftIsrRoute(request: APIRequestContext, scenario: string) {
   };
 }
 
+async function readPersonalized(request: APIRequestContext, pathname: string, visitorId: string) {
+  const response = await request.get(`${BASE_URL}${pathname}`, {
+    headers: { "x-test-visitor-id": visitorId },
+  });
+  expect(response.status()).toBe(200);
+  return {
+    body: await response.text(),
+    visitor: response.headers()["x-cdn-stage-visitor"],
+  };
+}
+
 test.describe("Cloudflare route-handler draft-mode cache isolation", () => {
   test.beforeAll(async () => {
     server = spawn(
@@ -153,5 +164,46 @@ test.describe("Cloudflare route-handler draft-mode cache isolation", () => {
     expect(second.headers()["cache-control"]).toContain("no-store");
 
     await setDraftMode(request, false);
+  });
+
+  test("runs middleware above App and Pages response stages", async ({ request }) => {
+    // Local Miniflare executes the named response entrypoint but does not emulate
+    // the deployed Worker-front cache. Deployed HIT reuse is covered by
+    // rsc-prewarm.spec.ts in the workers-cache preview workflow.
+    for (const route of ["cdn-stage-app", "cdn-stage-pages"]) {
+      const slug = `${route}-${Date.now()}`;
+      const first = await readPersonalized(request, `/${route}/${slug}`, "visitor-a");
+      const second = await readPersonalized(request, `/${route}/${slug}`, "visitor-b");
+
+      expect(first.visitor).toBe("visitor-a");
+      expect(second.visitor).toBe("visitor-b");
+      expect(first.body).toContain(
+        `${route === "cdn-stage-app" ? "App" : "Pages"} CDN response stage`,
+      );
+      expect(second.body).toContain(
+        `${route === "cdn-stage-app" ? "App" : "Pages"} CDN response stage`,
+      );
+    }
+  });
+
+  test("bypasses the shared response stage for middleware cookie overlays", async ({ request }) => {
+    const slug = `cookie-${Date.now()}`;
+    const first = await readPersonalized(request, `/cdn-stage-cookie/${slug}`, "visitor-a");
+    const second = await readPersonalized(request, `/cdn-stage-cookie/${slug}`, "visitor-b");
+
+    expect(first.body).toContain("middleware-cookie:visitor-a");
+    expect(second.body).toContain("middleware-cookie:visitor-b");
+  });
+
+  test("does not cache late request-dependent App responses", async ({ request }) => {
+    for (const route of ["cdn-stage-late", "api/cdn-stage-late-route"]) {
+      const slug = `${route.replaceAll("/", "-")}-${Date.now()}`;
+      const first = await readPersonalized(request, `/${route}/${slug}`, "visitor-a");
+      const second = await readPersonalized(request, `/${route}/${slug}`, "visitor-b");
+
+      expect(first.body).toContain("visitor-a");
+      expect(second.body).toContain("visitor-b");
+      expect(second.body).not.toBe(first.body);
+    }
   });
 });
