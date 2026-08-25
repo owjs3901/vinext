@@ -31,6 +31,7 @@ import { matchesRewriteSource } from "../config/config-matchers.js";
 import { pagesRouteHasPriorityOverAppRoute } from "../server/hybrid-route-priority.js";
 import { extractLocaleFromUrl, normalizeDefaultLocalePathname } from "../server/pages-i18n.js";
 import { normalizePathTrailingSlash } from "vinext/shims/url-utils";
+import { resolveBuiltRscEntryPath } from "./server-entry.js";
 
 export type PrerenderPathManifest = {
   basePath?: string;
@@ -713,9 +714,10 @@ export async function emitPrerenderPathManifest(
 
   if (!appDir && !pagesDir) return null;
 
-  const defaultRscBundlePath = options.routeRootConfig?.rscOutDir
-    ? path.join(path.resolve(root, options.routeRootConfig.rscOutDir), "index.js")
-    : path.join(root, "dist", "server", "index.js");
+  const rscServerDir = options.routeRootConfig?.rscOutDir
+    ? path.resolve(root, options.routeRootConfig.rscOutDir)
+    : path.join(root, "dist", "server");
+  const defaultRscBundlePath = resolveBuiltRscEntryPath(rscServerDir);
   const rscBundlePath = options.rscBundlePath ?? defaultRscBundlePath;
   const pagesBundlePath = options.pagesBundlePath ?? path.join(root, "dist", "server", "entry.js");
   const bundleServerDir = fs.existsSync(rscBundlePath)

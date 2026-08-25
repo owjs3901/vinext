@@ -31,6 +31,8 @@ type FinalizeAppRscResponseOptions = {
    * before middleware runs.
    */
   requestContext: RequestContext;
+  /** Existing response headers that matching next.config rules may replace. */
+  overwriteExisting?: ReadonlySet<string>;
   /** Response headers emitted by middleware after config matching. */
   middlewareHeaders?: Headers | null;
 };
@@ -77,6 +79,7 @@ export async function applyAppRscConfigHeaders(
     pathname: matchPathname,
     requestContext: options.requestContext,
     basePathState: { basePath: options.basePath, hadBasePath },
+    overwriteExisting: options.overwriteExisting,
     appendToPostConfigLink: hasPostConfigLinkHeaders(headers),
     middlewareHeaders: options.middlewareHeaders,
   });
