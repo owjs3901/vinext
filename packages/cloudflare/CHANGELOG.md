@@ -1,5 +1,32 @@
 # @vinext/cloudflare
 
+## 1.0.0-beta.7
+
+### Features
+
+#### Cloudflare
+
+- configure warmup promotion delay (#3017)
+- allow warmup without promotion (#3016)
+- prewarm canonical ISR RSC requests (#3002)
+
+### Bug Fixes
+
+#### Cloudflare
+
+- verify Worker version IDs during CDN warmup (#3072)
+- complete warmup response and promotion contracts (#3046)
+- harden canonical RSC warmup end to end (#3040)
+- default CDN warmup concurrency to 25 (#3015)
+
+#### Misc
+
+- **Build:** validate CDN warm discovery and deploy inputs (#3057)
+
+### Contributors
+
+- @james-elicx
+
 ## 1.0.0-beta.6
 
 ### Bug Fixes

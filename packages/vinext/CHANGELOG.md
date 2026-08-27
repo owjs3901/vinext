@@ -1,5 +1,31 @@
 # vinext
 
+## 1.0.0-beta.9
+
+### Features
+
+- **Cloudflare:** prewarm canonical ISR RSC requests (#3002)
+
+### Bug Fixes
+
+#### Cloudflare
+
+- verify Worker version IDs during CDN warmup (#3072)
+- complete warmup response and promotion contracts (#3046)
+- harden canonical RSC warmup end to end (#3040)
+
+#### Misc
+
+- **App Router:** support soft navigation in static exports (#3112)
+- **Build:** support trailing-slash static exports (#3081)
+- **App Router:** validate interception context identity (#3078)
+- **App:** authenticate static file signals (#3077)
+- **Build:** validate CDN warm discovery and deploy inputs (#3057)
+
+### Contributors
+
+- @james-elicx
+
 ## 1.0.0-beta.8
 
 ### Features
